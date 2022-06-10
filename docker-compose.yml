@@ -1,0 +1,73 @@
+version: '3.0'
+services:
+  db:
+     image: mysql:8.0
+     volumes:
+       - /db_data:/var/lib/mysql
+     restart: always
+     environment:
+       MYSQL_ROOT_PASSWORD: root
+       MYSQL_DATABASE: wordpress
+       MYSQL_USER: wordpress
+       MYSQL_PASSWORD: root
+
+  wordpress:
+     depends_on:
+       - db
+     image: wordpress:latest
+     ports:
+       - 8080:80
+     restart: always
+     environment:
+        WORDPRESS_DB_HOST: db:3306
+        WORDPRESS_DB_USER: wordpress
+        WORDPRESS_DB_PASSWORD: root
+        WORDPRESS_DB_NAME: wordpress
+    
+  phpmyadmin:
+     image: phpmyadmin/phpmyadmin
+     restart: always
+     ports:
+       - 3333:80
+     environment:
+        PMA_HOST: db
+        MYSQL_ROOT_PASSWORT: root
+
+  node-exporter:
+     image: prom/node-exporter:latest
+     container_name: node-exporter
+     restart: unless-stopped
+     volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+     command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+     ports:
+      - "9100:9100"
+  mysqlexporter:
+    image: prom/mysqld-exporter
+    restart: always
+    ports:
+      - "9104:9104"
+    environment:
+      - DATA_SOURCE_NAME=wordpress:root@(localhost:3306)/wordpress
+      - collect.info_schema.tablestats=true
+      - collect.info_schema.userstats=true
+      - collect.info_schema.query_response_time=true
+      - collect.auto_increment.columns=true
+      - collect.binlog_size=true
+      - collect.perf_schema.eventsstatements=true
+      - collect.perf_schema.eventswaits=true
+      - collect.perf_schema.file_events=true
+      - collect.perf_schema.indexiowaits=true
+      - collect.perf_schema.tableiowaits=true
+      - collect.perf_schema.tablelocks=true
+    depends_on:
+      - db
+
+volumes:
+    db_data: {}
